@@ -2,9 +2,9 @@
 #ifndef header_H
 #define header_H
 
-#include "imgui.h"
-#include "imgui_impl_sdl.h"
-#include "imgui_impl_opengl3.h"
+#include "imgui/lib/imgui.h"
+#include "imgui/lib/backend/imgui_impl_sdl.h"
+#include "imgui/lib/backend/imgui_impl_opengl3.h"
 #include <stdio.h>
 #include <dirent.h>
 #include <vector>
