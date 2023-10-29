@@ -41,14 +41,146 @@ using namespace gl;
 #include IMGUI_IMPL_OPENGL_LOADER_CUSTOM
 #endif
 
+float getCPUPercentage() {
+    static long long lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle;
+    float percent;
+    FILE* file = fopen("/proc/stat", "r");
+    long long totalUser, totalUserLow, totalSys, totalIdle, total;
+
+    fscanf(file, "cpu %lld %lld %lld %lld", &totalUser, &totalUserLow, &totalSys, &totalIdle);
+    fclose(file);
+
+    if (totalUser < lastTotalUser || totalUserLow < lastTotalUserLow ||
+        totalSys < lastTotalSys || totalIdle < lastTotalIdle){
+        // Overflow detection
+        percent = -1.0;
+    }
+    else{
+        total = (totalUser - lastTotalUser) + (totalUserLow - lastTotalUserLow) +
+                (totalSys - lastTotalSys);
+        percent = total;
+        total += (totalIdle - lastTotalIdle);
+        percent /= total;
+        percent *= 100;
+    }
+
+    lastTotalUser = totalUser;
+    lastTotalUserLow = totalUserLow;
+    lastTotalSys = totalSys;
+    lastTotalIdle = totalIdle;
+
+    return percent;
+}
+
+
 // systemWindow, display information for the system monitorization
 void systemWindow(const char *id, ImVec2 size, ImVec2 position)
 {
+
+    static double lastUpdateTime = 0;
+    static char buffer[50] = {};
+
+    double currentTime = ImGui::GetTime();
+    if (currentTime - lastUpdateTime >= 1.0) {  // Mettre à jour toutes les secondes
+        lastUpdateTime = currentTime;
+        const char* processCount = NumberofWorking();
+        strncpy(buffer, processCount, sizeof(buffer) - 1);
+    }
+
     ImGui::Begin(id);
     ImGui::SetWindowSize(id, size);
     ImGui::SetWindowPos(id, position);
 
     // student TODO : add code here for the system window
+
+    ImGui::Text("Operating System Used: %s", getOsName());
+    ImGui::Text("Computer name: %s", getHostName());
+    ImGui::Text("User logged in: %s", getUserName());
+    ImGui::Text("CPU: %s", getCPUName());
+    ImGui::Text("Number of working processes: %s", buffer);
+    ImGui::Separator();
+
+
+    // GRAPH
+    const int VALUES_COUNT = 100;
+    static float values[VALUES_COUNT] = { 0 };
+    static int values_offset = 0;
+    float currentPercentage = getCPUPercentage();
+    values[values_offset] = currentPercentage;
+    values_offset = (values_offset + 1) % VALUES_COUNT;
+
+    // Tabs for CPU, Fan, Thermal
+    if (ImGui::BeginTabBar("Tabs"))
+    {
+        if (ImGui::BeginTabItem("CPU")) {
+            static float fps = 30.0f; // Par défaut à 30 FPS
+            static int values_offset = 0;
+            static double lastTime = 0;
+
+            // Slider pour contrôler les FPS
+            ImGui::SliderFloat("FPS", &fps, 1.0f, 144.0f);
+
+            // Slider pour contrôler l'échelle max de l'axe Y
+            static float scaleMax = 100.0f;
+            ImGui::SliderFloat("Scale Max", &scaleMax, 0.0f, 100.0f);
+
+            // Logique de mise à jour basée sur le FPS
+            double currentTime = ImGui::GetTime();  // Utilise la fonction GetTime() d'ImGui pour obtenir le temps actuel
+            double deltaTime = currentTime - lastTime;
+            double interval = 1.0 / fps;  // Interval en secondes entre les mises à jour
+
+            if (deltaTime >= interval) {
+                // Mise à jour du pourcentage du CPU et du tableau de valeurs
+                float currentPercentage = getCPUPercentage();
+                values[values_offset] = currentPercentage;
+                values_offset = (values_offset + 1) % VALUES_COUNT;
+
+                lastTime = currentTime;
+            }
+
+            // Définition de la taille du graphique
+            ImVec2 graphSize = ImVec2(400, 200); // Largeur de 400, hauteur de 200
+
+            // Sauvegarde de la position du curseur actuel
+            ImVec2 currentCursorPos = ImGui::GetCursorPos();
+
+            // Afficher le graphique
+            char buf[50];
+            snprintf(buf, sizeof(buf), "CPU");
+            ImGui::PlotLines(buf, values, VALUES_COUNT, values_offset, NULL, 0.0f, scaleMax, graphSize);
+
+            // Calcul de la position pour le texte overlay
+            ImVec2 overlayPos = ImVec2(currentCursorPos.x + graphSize.x * 0.5f - 70, currentCursorPos.y);
+            ImGui::SetCursorPos(overlayPos);
+
+            // Affichage du texte en superposition
+            snprintf(buf, sizeof(buf), "CPU Usage: %.2f%%", values[values_offset]);
+            ImGui::TextUnformatted(buf);
+
+
+            ImGui::EndTabItem();
+        }
+
+
+
+
+        if (ImGui::BeginTabItem("Fan"))
+        {
+            // TODO: Content for Fan Tab
+            ImGui::Text("This is the Fan Tab");
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Thermal"))
+        {
+            // TODO: Content for Thermal Tab
+            ImGui::Text("This is the Thermal Tab");
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    } 
+
+    // End of example code
 
     ImGui::End();
 }
