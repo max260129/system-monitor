@@ -19,23 +19,23 @@ double get_total_ram_memory() {
 }
 
 double getPhysicalMemoryUsedInGB() {
-#ifdef _WIN32
-    MEMORYSTATUSEX memoryStatus;
-    memoryStatus.dwLength = sizeof(memoryStatus);
+     std::ifstream meminfo("/proc/meminfo");
+    if (meminfo.is_open()) {
+        std::string line;
+        while (std::getline(meminfo, line)) {
+            if (line.find("MemAvailable:") != std::string::npos) {
+                unsigned long long availableMemoryKB;
+                if (sscanf(line.c_str(), "MemAvailable: %llu", &availableMemoryKB) == 1) {
+                    double availableMemoryGB = static_cast<double>(availableMemoryKB) / (1024 * 1024);
+                    return availableMemoryGB;
+                }
+            }
+        }
+        meminfo.close();
+    }
 
-    if (GlobalMemoryStatusEx(&memoryStatus)) {
-        return static_cast<double>(memoryStatus.ullTotalPhys) / (1024 * 1024 * 1024);
-    } else {
-        return -1.0; // Error
-    }
-#else
-    struct sysinfo info;
-    if (sysinfo(&info) == 0) {
-        return static_cast<double>(info.totalram) * info.mem_unit / (1024 * 1024 * 1024);
-    } else {
-        return -1.0; // Error
-    }
-#endif
+    // If we can't read the value, return a default or error value
+    return -1.0;
 }
 
 
@@ -60,21 +60,29 @@ double getSwapSpaceInGB() {
 }
 
 double getUsedSwapSpaceInGB() {
-#ifdef _WIN32
-    PROCESS_MEMORY_COUNTERS_EX pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
-        return static_cast<double>(pmc.PagefileUsage) / (1024 * 1024 * 1024);
-    } else {
-        return -1.0; // Error
+  std::ifstream meminfo("/proc/meminfo");
+    if (meminfo.is_open()) {
+        std::string line;
+        unsigned long long totalSwapKB = 0;
+        unsigned long long freeSwapKB = 0;
+
+        while (std::getline(meminfo, line)) {
+            if (line.find("SwapTotal:") != std::string::npos) {
+                sscanf(line.c_str(), "SwapTotal: %llu", &totalSwapKB);
+            } else if (line.find("SwapFree:") != std::string::npos) {
+                sscanf(line.c_str(), "SwapFree: %llu", &freeSwapKB);
+            }
+        }
+        meminfo.close();
+
+        if (totalSwapKB > 0) {
+            double usedSwapGB = static_cast<double>(totalSwapKB - freeSwapKB) / (1024 * 1024);
+            return usedSwapGB;
+        }
     }
-#else
-    struct sysinfo info;
-    if (sysinfo(&info) == 0) {
-        return static_cast<double>(info.freeswap) * info.mem_unit / (1024 * 1024 * 1024);
-    } else {
-        return -1.0; // Error
-    }
-#endif
+
+    // If we can't read the value, return a default or error value
+    return -1.0;
 }
 
 double getDiskSizeInGB(const std::string& path) {
@@ -126,7 +134,84 @@ double getUsedDiskSpaceInGB(const std::string& path) {
 #endif
 }
 
-void listProcesses() {
+double getProcessCPUUsage(int pid) {
+    std::string statFile = "/proc/" + std::to_string(pid) + "/stat";
+    std::ifstream file(statFile);
+
+    if (!file.is_open()) {
+        std::cerr << "Failed to open stat file for PID " << pid << std::endl;
+        return 0.0; // Default to 0% CPU usage
+    }
+
+    std::string line;
+    std::getline(file, line);
+    file.close();
+
+    // Extract the CPU usage information from the stat file
+    long utime, stime, cutime, cstime;
+    if (sscanf(line.c_str(),
+        "%*d %*s %*c %*d %*d %*d %*d %*d %*u "
+        "%lu %lu %ld %ld",
+        &utime, &stime, &cutime, &cstime) != 4) {
+        return 0.0; // Default to 0% CPU usage if parsing fails
+    }
+
+    long totalTime = utime + stime + cutime + cstime;
+    long hertz = sysconf(_SC_CLK_TCK);
+    double seconds = (double)totalTime / hertz;
+    
+    // Calculate the CPU usage percentage
+    return (seconds > 0.0) ? (100.0 * (utime + stime) / totalTime) : 0.0;
+}
+
+double getProcessMemoryUsage(int pid) {
+    // Paths to the process's status and system's memory info
+    std::string statusFile = "/proc/" + std::to_string(pid) + "/status";
+    std::string meminfoFile = "/proc/meminfo";
+
+    std::ifstream processStatus(statusFile);
+    std::ifstream meminfo(meminfoFile);
+    std::string line;
+
+    long long processMemory = 0;
+    long long totalMemory = 0;
+
+    // Read the process's memory from its status file
+    while (std::getline(processStatus, line)) {
+        if (line.find("VmRSS:") != std::string::npos) {
+            std::istringstream iss(line);
+            std::string key;
+            long long value;
+            iss >> key >> value;
+            processMemory = value * 1024; // Convert from kB to bytes
+            break;
+        }
+    }
+
+    // Read the total system memory from /proc/meminfo
+    while (std::getline(meminfo, line)) {
+        if (line.find("MemTotal:") != std::string::npos) {
+            std::istringstream iss(line);
+            std::string key;
+            long long value;
+            iss >> key >> value;
+            totalMemory = value * 1024; // Convert from kB to bytes
+            break;
+        }
+    }
+
+    if (totalMemory > 0) {
+        // Calculate memory usage percentage
+        double memoryUsagePercentage = (static_cast<double>(processMemory) / totalMemory) * 100.0;
+        return memoryUsagePercentage;
+    }
+
+    // Return -1 to indicate an error
+    return -1.0;
+}
+
+
+void listProcesses(const char* searchFilter) {
     DIR* dir;
     struct dirent* entry;
     std::string statusFile, line;
@@ -137,24 +222,55 @@ void listProcesses() {
         return;
     }
 
-    std::cout << "List of running processes:" << std::endl;
+    ImGui::Columns(5, "ProcessListColumns", true);
+
+    ImGui::Text("PID");
+    ImGui::NextColumn();
+    ImGui::Text("Name");
+    ImGui::NextColumn();
+    ImGui::Text("Status");
+    ImGui::NextColumn();
+    ImGui::Text("CPU Usage");
+    ImGui::NextColumn();
+    ImGui::Text("Memory Usage");
+    ImGui::NextColumn();
+    ImGui::Separator();
+
     while ((entry = readdir(dir)) != NULL) {
         if (isdigit(entry->d_name[0])) {
             statusFile = "/proc/" + std::string(entry->d_name) + "/status";
             std::ifstream file(statusFile);
             if (file.is_open()) {
+                std::string processName;
+                int processID = std::stoi(entry->d_name);
+                double cpuUsage = getProcessCPUUsage(processID); // You need to implement this function
+                double memoryUsageKB = getProcessMemoryUsage(processID); // You need to implement this function
+
                 while (std::getline(file, line)) {
                     if (line.find("Name:") == 0) {
-                        std::istringstream iss(line);
-                        std::string key, value;
-                        iss >> key >> value;
-                        std::cout << "Process ID: " << entry->d_name << " - Process Name: " << value << std::endl;
-                        break;
+                        processName = line.substr(6); // Extract process name
+                    }
+                    else if (line.find("State:") == 0) {
+                        std::string state = line.substr(7);
+                        state = state.substr(1, state.size() - 2);
+                        ImGui::Text("%d", processID);
+                        ImGui::NextColumn();
+                        ImGui::Text("%s", processName.c_str());
+                        ImGui::NextColumn();
+                        ImGui::Text("%s", state.c_str()+2);
+                        ImGui::NextColumn();
+                        ImGui::Text("%.2f%%", cpuUsage); // Display CPU usage
+                        ImGui::NextColumn();
+                        ImGui::Text("%.2f%%", memoryUsageKB); // Display memory usage in KB
+                        ImGui::NextColumn();
                     }
                 }
+
                 file.close();
             }
         }
     }
+
+    ImGui::Columns(1);
     closedir(dir);
 }

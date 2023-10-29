@@ -63,58 +63,53 @@ void memoryProcessesWindow(const char *id, ImVec2 size, ImVec2 position)
     ImGui::SetWindowSize(id, size);
     ImGui::SetWindowPos(id, position);
 
-    // student TODO : add code here for the memory and process information
-    ImGui::Text("Physic memory (RAM) :");
-    double usedMemoryPercentage = (getPhysicalMemoryUsedInGB() / get_total_ram_memory()) * 100.0;
-    ImGui::ProgressBar(static_cast<float>(usedMemoryPercentage / 100.0), ImVec2(-1.0f, 0.0f));
-
-    //ImGui::Separator();
-
-    ImGui::SameLine(0.5f, 1.0f);
-    ImGui::Text("%.2f GB/ %.2f GB", getPhysicalMemoryUsedInGB(), get_total_ram_memory());
-
-    ImGui::Spacing();
-
-    ImGui::Text("The Virtual Memory (SWAP) : ");
-    double usedMemoryPercentage1 = (getUsedSwapSpaceInGB()/ getSwapSpaceInGB()) * 100.0;
-    ImGui::ProgressBar(static_cast<float>(usedMemoryPercentage1 / 100.0), ImVec2(-1.0f, 0.0f));
-
-    ImGui::SameLine(0.5f, 1.0f);
-    ImGui::Text("%.2f GB/ %.2f GB", getUsedSwapSpaceInGB(), getSwapSpaceInGB());
+    // RAM
+    ImGui::Text("Physical memory (RAM) :");
+    double usedMemoryGB = getPhysicalMemoryUsedInGB();
+    double totalMemoryGB = get_total_ram_memory();
+    ImGui::Text("%.2f GB / %.2f GB", usedMemoryGB, totalMemoryGB);
+    float usedMemoryPercentage = static_cast<float>(usedMemoryGB / totalMemoryGB);
+    ImGui::ProgressBar(usedMemoryPercentage, ImVec2(-1.0f, 0.0f)); // Pass the value directly
+    ImGui::SameLine(0.0f, 7.0f);  // Adjust the same line position
 
     ImGui::Spacing();
 
+
+    // SWAP
+    ImGui::Text("Virtual Memory (SWAP) :");
+    double usedSwapGB = getUsedSwapSpaceInGB();
+    double totalSwapGB = getSwapSpaceInGB();
+    double usedSwapPercentage = (usedSwapGB / totalSwapGB) * 100.0;
+    ImGui::Text("%.2f GB / %.2f GB", usedSwapGB, totalSwapGB);
+    ImGui::ProgressBar(static_cast<float>(usedSwapPercentage / 100.0), ImVec2(-1.0f, 0.0f));
+    ImGui::SameLine(0.0f, 15.0f);  // Adjust the same line position
+
+    ImGui::Spacing();
+
+    // Disk
     std::string path = "/";
     double usedDiskSpaceGB = getUsedDiskSpaceInGB(path);
     double diskSizeGB = getDiskSizeInGB(path);
-
-    ImGui::Text("Disk : ");
-    double usedMemoryPercentage2 = (usedDiskSpaceGB/ diskSizeGB) * 100.0;
-    ImGui::ProgressBar(static_cast<float>(usedMemoryPercentage2 / 100.0), ImVec2(-1.0f, 0.0f));
-
-    //ImGui::Separator();
-
-    ImGui::SameLine(0.5f, 1.0f);
-    ImGui::Text("%.2f GB/ %.2f GB", usedDiskSpaceGB, diskSizeGB);
+    double usedDiskPercentage = (usedDiskSpaceGB / diskSizeGB) * 100.0;
+    ImGui::Text("Disk :");
+    ImGui::Text("%.2f GB / %.2f GB", usedDiskSpaceGB, diskSizeGB);
+    ImGui::ProgressBar(static_cast<float>(usedDiskPercentage / 100.0), ImVec2(-1.0f, 0.0f));
+    ImGui::SameLine(0.0f, 15.0f);  // Adjust the same line position
 
     ImGui::Separator();
 
-     if (ImGui::CollapsingHeader("Process Table"))
+    if (ImGui::CollapsingHeader("Process Table"))
     {
         // The section is expanded when this code block is executed
+       // Search Bar
+        static char searchBuffer[256];
+        ImGui::Text("Filter the process by name :");
+        ImGui::InputText("Filter", searchBuffer, sizeof(searchBuffer));
 
-        ImGui::SetNextWindowSize(size);
-        ImGui::SetNextWindowPos(position);
-
-        ImGui::Begin(id, nullptr, ImGuiWindowFlags_NoCollapse);
-
-        // student TODO : add code here for the memory and process information
-        ImGui::Text("Physic memory (RAM) :");
-        listProcesses();
-
-        ImGui::Separator();
-
-        ImGui::End();
+        // Process Table
+        ImGui::BeginChild("ProcessList", ImVec2(0, 0), true);
+        listProcesses(searchBuffer);
+        ImGui::EndChild();
     }
 
     ImGui::End();

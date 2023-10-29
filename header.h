@@ -107,7 +107,9 @@ double getSwapSpaceInGB();
 double getUsedSwapSpaceInGB();
 double getDiskSizeInGB(const std::string& path);
 double getUsedDiskSpaceInGB(const std::string& path);
-void listProcesses();
+void listProcesses(const char* searchFilter);
+double getProcessCPUUsage(int pid);
+double getProcessMemoryUsage(int pid);
 
 // student TODO : network
 
