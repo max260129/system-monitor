@@ -103,6 +103,10 @@ const char *getHostName();
 const char *getUserName();
 const char *getCPUName();
 const char* NumberofWorking();
+int get_cpu_temperature();
+const char* is_fan_enabled();
+const char* get_fan_level();
+int get_fan_speed();
 
 // student TODO : memory and processes
 

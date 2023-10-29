@@ -114,3 +114,60 @@ const char* NumberofWorking() {
     snprintf(buffer, sizeof(buffer), "%d", processCount);
     return buffer;
 }
+
+int get_cpu_temperature() {
+    std::ifstream file("/sys/class/thermal/thermal_zone0/temp");
+    if (!file.is_open()) {
+        std::cerr << "Erreur lors de l'ouverture du fichier." << std::endl;
+        return -1;
+    }
+
+    int temp;
+    file >> temp;
+
+    if (file.fail()) {
+        std::cerr << "Erreur lors de la lecture de la température." << std::endl;
+        return -1;
+    }
+
+    file.close();
+
+    return temp / 1000;  // Convertir la température en degrés Celsius
+}
+
+// Fonction pour obtenir le statut du ventilateur (enabled/disabled)
+const char* is_fan_enabled() {
+    std::ifstream file("/sys/class/hwmon/hwmon5/pwm1_enable");
+    int status;
+    if (file >> status) {
+        if (status == 0) return "disabled";
+        if (status == 1) return "enabled";
+        if (status == 2) return "enabled";
+    }
+    return "disabled";  // default to not enabled
+}
+
+// Fonction pour obtenir le niveau du ventilateur (par exemple, "auto")
+const char* get_fan_level() {
+    std::string path = "/sys/class/hwmon/hwmon5/pwm1_enable"; // Ajustez le chemin si nécessaire
+    std::ifstream file(path);
+    if(file) {
+        int level;
+        file >> level;
+        if(level == 1) return "manual";  // Selon la documentation, 1 signifie "manual"
+        if(level == 2) return "auto";    // 2 signifie "auto"
+    }
+    return "unknown";  // Retourne "unknown" si le fichier n'est pas lu correctement
+}
+
+// Fonction pour obtenir la vitesse du ventilateur
+int get_fan_speed() {
+    std::string path = "/sys/class/hwmon/hwmon5/fan1_input"; // Ajustez le chemin si nécessaire
+    std::ifstream file(path);
+    if(file) {
+        int speed;
+        file >> speed;
+        return speed;
+    }
+    return -1;  // Retourne -1 si le fichier n'est pas lu correctement
+}

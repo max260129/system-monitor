@@ -72,6 +72,10 @@ float getCPUPercentage() {
     return percent;
 }
 
+char buf[100] = "CPU Usage: 0.00%";
+const int UPDATE_INTERVAL = 60;
+int counter = 0;
+
 
 // systemWindow, display information for the system monitorization
 void systemWindow(const char *id, ImVec2 size, ImVec2 position)
@@ -109,13 +113,50 @@ void systemWindow(const char *id, ImVec2 size, ImVec2 position)
     values[values_offset] = currentPercentage;
     values_offset = (values_offset + 1) % VALUES_COUNT;
 
+    static bool animate = true;
+
+
     // Tabs for CPU, Fan, Thermal
     if (ImGui::BeginTabBar("Tabs"))
     {
+        static bool showThermalInfo = false;
+        static bool showFanInfo = false;
+        bool is_thermal_active = false;
+        bool is_fan_active = false;
+
         if (ImGui::BeginTabItem("CPU")) {
+
+            
             static float fps = 30.0f; // Par défaut à 30 FPS
             static int values_offset = 0;
             static double lastTime = 0;
+
+            if (showThermalInfo && is_fan_active == false) {
+                // Désactivez les bordures pour la fenêtre "ThermalInfo"
+                ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
+                ImGui::BeginChild("ThermalInfo", ImVec2(200, 50), true);
+                ImGui::Text("Temperature: %d°C", get_cpu_temperature());
+                ImGui::EndChild();
+                ImGui::PopStyleVar();
+                ImGui::Separator();
+                is_thermal_active = true;
+            }
+
+            if (showFanInfo && is_thermal_active == false) {
+                // Désactivez les bordures pour la fenêtre "FanInfo"
+                ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
+                ImGui::BeginChild("FanInfo", ImVec2(200, 50), true);
+                ImGui::Text("Fan status:");
+                ImGui::Text("    status : %s", is_fan_enabled());
+                ImGui::Text("    level  : %s", get_fan_level());
+                ImGui::Text("    Speed  : %d", get_fan_speed());
+                ImGui::EndChild();
+                ImGui::PopStyleVar(); 
+                ImGui::Separator();
+                is_fan_active = true;
+            }
+
+            ImGui::Checkbox("Animate", &animate);
 
             // Slider pour contrôler les FPS
             ImGui::SliderFloat("FPS", &fps, 1.0f, 144.0f);
@@ -130,12 +171,14 @@ void systemWindow(const char *id, ImVec2 size, ImVec2 position)
             double interval = 1.0 / fps;  // Interval en secondes entre les mises à jour
 
             if (deltaTime >= interval) {
-                // Mise à jour du pourcentage du CPU et du tableau de valeurs
-                float currentPercentage = getCPUPercentage();
-                values[values_offset] = currentPercentage;
-                values_offset = (values_offset + 1) % VALUES_COUNT;
+                if (animate) {
+                    // Mise à jour du pourcentage du CPU et du tableau de valeurs
+                    float currentPercentage = getCPUPercentage();
+                    values[values_offset] = currentPercentage;
+                    values_offset = (values_offset + 1) % VALUES_COUNT;
 
-                lastTime = currentTime;
+                    lastTime = currentTime;
+                }
             }
 
             // Définition de la taille du graphique
@@ -147,38 +190,35 @@ void systemWindow(const char *id, ImVec2 size, ImVec2 position)
             // Afficher le graphique
             char buf[50];
             snprintf(buf, sizeof(buf), "CPU");
-            ImGui::PlotLines(buf, values, VALUES_COUNT, values_offset, NULL, 0.0f, scaleMax, graphSize);
+            ImGui::PlotLines(buf, values, VALUES_COUNT, animate ? values_offset : 0, NULL, 0.0f, scaleMax, graphSize);
 
             // Calcul de la position pour le texte overlay
             ImVec2 overlayPos = ImVec2(currentCursorPos.x + graphSize.x * 0.5f - 70, currentCursorPos.y);
             ImGui::SetCursorPos(overlayPos);
 
-            // Affichage du texte en superposition
-            snprintf(buf, sizeof(buf), "CPU Usage: %.2f%%", values[values_offset]);
-            ImGui::TextUnformatted(buf);
+            if (counter % UPDATE_INTERVAL == 0) {
+                snprintf(buf, sizeof(buf), "CPU Usage: %.2f%%", values[values_offset]);
+            }
 
+            // Utilisez ImGui::Text pour allouer un espace fixe pour le texte.
+            // Par exemple, si la longueur maximale du texte est de 20 caractères, réservez un espace pour cela.
+            ImGui::Text("%-20s", buf);
 
             ImGui::EndTabItem();
         }
 
-
-
-
-        if (ImGui::BeginTabItem("Fan"))
-        {
-            // TODO: Content for Fan Tab
-            ImGui::Text("This is the Fan Tab");
-            ImGui::EndTabItem();
+        if (ImGui::TabItemButton("Fan")) {
+            showFanInfo = !showFanInfo;
         }
 
-        if (ImGui::BeginTabItem("Thermal"))
-        {
-            // TODO: Content for Thermal Tab
-            ImGui::Text("This is the Thermal Tab");
-            ImGui::EndTabItem();
+        if (ImGui::TabItemButton("Thermal")) {
+            showThermalInfo = !showThermalInfo;
         }
+
+
+
         ImGui::EndTabBar();
-    } 
+    }
 
     // End of example code
 
