@@ -1,3 +1,6 @@
+#ifndef MEM_CPP
+#define MEM_CPP
+
 #include "header.h"
 #include <SDL2/SDL.h>
 
@@ -61,6 +64,58 @@ void memoryProcessesWindow(const char *id, ImVec2 size, ImVec2 position)
     ImGui::SetWindowPos(id, position);
 
     // student TODO : add code here for the memory and process information
+    ImGui::Text("Physic memory (RAM) :");
+    double usedMemoryPercentage = (getPhysicalMemoryUsedInGB() / get_total_ram_memory()) * 100.0;
+    ImGui::ProgressBar(static_cast<float>(usedMemoryPercentage / 100.0), ImVec2(-1.0f, 0.0f));
+
+    //ImGui::Separator();
+
+    ImGui::SameLine(0.5f, 1.0f);
+    ImGui::Text("%.2f GB/ %.2f GB", getPhysicalMemoryUsedInGB(), get_total_ram_memory());
+
+    ImGui::Spacing();
+
+    ImGui::Text("The Virtual Memory (SWAP) : ");
+    double usedMemoryPercentage1 = (getUsedSwapSpaceInGB()/ getSwapSpaceInGB()) * 100.0;
+    ImGui::ProgressBar(static_cast<float>(usedMemoryPercentage1 / 100.0), ImVec2(-1.0f, 0.0f));
+
+    ImGui::SameLine(0.5f, 1.0f);
+    ImGui::Text("%.2f GB/ %.2f GB", getUsedSwapSpaceInGB(), getSwapSpaceInGB());
+
+    ImGui::Spacing();
+
+    std::string path = "/";
+    double usedDiskSpaceGB = getUsedDiskSpaceInGB(path);
+    double diskSizeGB = getDiskSizeInGB(path);
+
+    ImGui::Text("Disk : ");
+    double usedMemoryPercentage2 = (usedDiskSpaceGB/ diskSizeGB) * 100.0;
+    ImGui::ProgressBar(static_cast<float>(usedMemoryPercentage2 / 100.0), ImVec2(-1.0f, 0.0f));
+
+    //ImGui::Separator();
+
+    ImGui::SameLine(0.5f, 1.0f);
+    ImGui::Text("%.2f GB/ %.2f GB", usedDiskSpaceGB, diskSizeGB);
+
+    ImGui::Separator();
+
+     if (ImGui::CollapsingHeader("Process Table"))
+    {
+        // The section is expanded when this code block is executed
+
+        ImGui::SetNextWindowSize(size);
+        ImGui::SetNextWindowPos(position);
+
+        ImGui::Begin(id, nullptr, ImGuiWindowFlags_NoCollapse);
+
+        // student TODO : add code here for the memory and process information
+        ImGui::Text("Physic memory (RAM) :");
+        listProcesses();
+
+        ImGui::Separator();
+
+        ImGui::End();
+    }
 
     ImGui::End();
 }
@@ -206,3 +261,5 @@ int main(int, char **)
 
     return 0;
 }
+
+#endif

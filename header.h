@@ -101,6 +101,13 @@ string CPUinfo();
 const char *getOsName();
 
 // student TODO : memory and processes
+double getPhysicalMemoryUsedInGB();
+double get_total_ram_memory();
+double getSwapSpaceInGB();
+double getUsedSwapSpaceInGB();
+double getDiskSizeInGB(const std::string& path);
+double getUsedDiskSpaceInGB(const std::string& path);
+void listProcesses();
 
 // student TODO : network
 
