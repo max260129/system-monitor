@@ -4,6 +4,8 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <unistd.h>
+#include <sys/times.h>
 
 //#include <unistd.h>
 
@@ -134,35 +136,32 @@ double getUsedDiskSpaceInGB(const std::string& path) {
 #endif
 }
 
-double getProcessCPUUsage(int pid) {
-    std::string statFile = "/proc/" + std::to_string(pid) + "/stat";
-    std::ifstream file(statFile);
-
-    if (!file.is_open()) {
-        std::cerr << "Failed to open stat file for PID " << pid << std::endl;
-        return 0.0; // Default to 0% CPU usage
+double getProcessCPUUsage(pid_t processID) {
+    std::string statFilePath = "/proc/" + std::to_string(processID) + "/stat";
+    std::ifstream statFile(statFilePath.c_str());
+    
+    if (!statFile) {
+        std::cerr << "Impossible d'ouvrir le fichier /proc/" << processID << "/stat." << std::endl;
+        return -1.0;
     }
 
     std::string line;
-    std::getline(file, line);
-    file.close();
-
-    // Extract the CPU usage information from the stat file
-    long utime, stime, cutime, cstime;
-    if (sscanf(line.c_str(),
-        "%*d %*s %*c %*d %*d %*d %*d %*d %*u "
-        "%lu %lu %ld %ld",
-        &utime, &stime, &cutime, &cstime) != 4) {
-        return 0.0; // Default to 0% CPU usage if parsing fails
+    std::getline(statFile, line);
+    std::istringstream iss(line);
+    std::string token;
+    for (int i = 1; i <= 13; i++) {
+        iss >> token;
     }
 
-    long totalTime = utime + stime + cutime + cstime;
-    long hertz = sysconf(_SC_CLK_TCK);
-    double seconds = (double)totalTime / hertz;
+    long utime = 0, stime = 0;
+    iss >> utime >> stime;
+
+    long totalTime = utime + stime;
+    long hertz = sysconf(_SC_CLK_TCK); // Correction : multiplication par 100
+    double cpuUsage = 100.0 * (totalTime / static_cast<double>(hertz));
     
-    // Calculate the CPU usage percentage
-    return (seconds > 0.0) ? (100.0 * (utime + stime) / totalTime) : 0.0;
-}
+    return cpuUsage;
+}  
 
 double getProcessMemoryUsage(int pid) {
     // Paths to the process's status and system's memory info
@@ -228,7 +227,7 @@ void listProcesses(const char* searchFilter) {
     ImGui::NextColumn();
     ImGui::Text("Name");
     ImGui::NextColumn();
-    ImGui::Text("Status");
+    ImGui::Text("State");
     ImGui::NextColumn();
     ImGui::Text("CPU Usage");
     ImGui::NextColumn();
