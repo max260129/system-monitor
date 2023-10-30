@@ -3,6 +3,7 @@
 
 #include "header.h"
 #include <SDL2/SDL.h>
+#include <iomanip>
 
 /*
 NOTE : You are free to change the code as you wish, the main objective is to make the
@@ -63,14 +64,42 @@ void memoryProcessesWindow(const char *id, ImVec2 size, ImVec2 position)
     ImGui::SetWindowSize(id, size);
     ImGui::SetWindowPos(id, position);
 
-    // RAM
-    ImGui::Text("Physical memory (RAM) :");
+   // RAM
+    ImGui::Text("Physical memory (RAM):");
     double usedMemoryGB = getPhysicalMemoryUsedInGB();
     double totalMemoryGB = get_total_ram_memory();
-    ImGui::Text("%.2f GB / %.2f GB", usedMemoryGB, totalMemoryGB);
     float usedMemoryPercentage = static_cast<float>(usedMemoryGB / totalMemoryGB);
-    ImGui::ProgressBar(usedMemoryPercentage, ImVec2(-1.0f, 0.0f)); // Pass the value directly
-    ImGui::SameLine(0.0f, 7.0f);  // Adjust the same line position
+
+    // Formate le texte pour afficher seulement 2 décimales
+    std::stringstream usedMemoryStream;
+    usedMemoryStream << std::fixed << std::setprecision(2) << usedMemoryGB;
+    std::string usedMemoryText = usedMemoryStream.str() + " GB";
+
+    // Formate le totalMemoryGB pour afficher seulement 2 décimales
+    std::stringstream totalMemoryStream;
+    totalMemoryStream << std::fixed << std::setprecision(2) << totalMemoryGB;
+    std::string totalMemoryText = totalMemoryStream.str() + " GB";
+
+    // Affiche la barre de progression avec le texte formaté
+    ImGui::ProgressBar(usedMemoryPercentage, ImVec2(-1, 0), usedMemoryText.c_str());
+
+    // Affiche le texte "0 GB" à gauche
+    ImGui::Text("0 GB");
+
+    // Calcule la position X pour afficher le texte "totalMemoryGB GB" à droite
+    float totalMemoryTextWidth = ImGui::CalcTextSize(totalMemoryText.c_str()).x;
+    float contentRegionMaxX = ImGui::GetWindowContentRegionMax().x;
+    float totalMemoryTextX = contentRegionMaxX - totalMemoryTextWidth;
+
+    // Calcule la position Y pour afficher le texte sur la même ligne
+    float cursorPosY = ImGui::GetCursorPosY();
+    float textHeight = ImGui::GetTextLineHeightWithSpacing();
+    float totalMemoryTextY = cursorPosY - textHeight; // Pour placer le texte sur la même ligne
+
+    // Affiche le texte "totalMemoryGB GB" à droite sur la même ligne
+    ImGui::SetCursorPosX(totalMemoryTextX);
+    ImGui::SetCursorPosY(totalMemoryTextY);
+    ImGui::Text(totalMemoryText.c_str());
 
     ImGui::Spacing();
 
@@ -79,22 +108,70 @@ void memoryProcessesWindow(const char *id, ImVec2 size, ImVec2 position)
     ImGui::Text("Virtual Memory (SWAP) :");
     double usedSwapGB = getUsedSwapSpaceInGB();
     double totalSwapGB = getSwapSpaceInGB();
-    double usedSwapPercentage = (usedSwapGB / totalSwapGB) * 100.0;
-    ImGui::Text("%.2f GB / %.2f GB", usedSwapGB, totalSwapGB);
-    ImGui::ProgressBar(static_cast<float>(usedSwapPercentage / 100.0), ImVec2(-1.0f, 0.0f));
-    ImGui::SameLine(0.0f, 15.0f);  // Adjust the same line position
+    float usedSwapPercentage = static_cast<float>(usedSwapGB / totalSwapGB);
+
+    std::stringstream usedSwapStream;
+    usedSwapStream << std::fixed << std::setprecision(2) << usedSwapGB;
+    std::string usedSwapText = usedSwapStream.str() + " GB";
+
+
+    std::stringstream totalSwapStream;
+    totalSwapStream << std::fixed << std::setprecision(2) << totalSwapGB;
+    std::string totalSwapText = totalSwapStream.str() + " GB";
+
+
+    ImGui::ProgressBar(usedSwapPercentage, ImVec2(-1, 0), usedSwapText.c_str());
+
+    ImGui::Text("0 GB");
+   
+
+    float totalSwapTextWidth = ImGui::CalcTextSize(totalSwapText.c_str()).x;
+    float contentSRegionMaxX = ImGui::GetWindowContentRegionMax().x;
+    float totalSwapTextX = contentSRegionMaxX - totalSwapTextWidth;
+
+    // Calcule la position Y pour afficher le texte sur la même ligne
+    float cursorSPosY = ImGui::GetCursorPosY();
+    float textSHeight = ImGui::GetTextLineHeightWithSpacing();
+    float totalSwapTextY = cursorSPosY - textSHeight; // Pour placer le texte sur la même ligne
+
+    // Affiche le texte "totalMemoryGB GB" à droite sur la même ligne
+    ImGui::SetCursorPosX(totalSwapTextX);
+    ImGui::SetCursorPosY(totalSwapTextY);
+    ImGui::Text(totalSwapText.c_str());
 
     ImGui::Spacing();
 
     // Disk
     std::string path = "/";
+    ImGui::Text("Disk :");
     double usedDiskSpaceGB = getUsedDiskSpaceInGB(path);
     double diskSizeGB = getDiskSizeInGB(path);
-    double usedDiskPercentage = (usedDiskSpaceGB / diskSizeGB) * 100.0;
-    ImGui::Text("Disk :");
-    ImGui::Text("%.2f GB / %.2f GB", usedDiskSpaceGB, diskSizeGB);
-    ImGui::ProgressBar(static_cast<float>(usedDiskPercentage / 100.0), ImVec2(-1.0f, 0.0f));
-    ImGui::SameLine(0.0f, 15.0f);  // Adjust the same line position
+    float usedDiskPercentage = static_cast<float>(usedDiskSpaceGB / diskSizeGB);
+
+    std::stringstream usedDiskMemoryStream;
+    std::stringstream totalDiskMemoryStream;
+    usedDiskMemoryStream << std::fixed << std::setprecision(2) << usedDiskSpaceGB;
+    totalDiskMemoryStream << std::fixed << std::setprecision(2) << diskSizeGB;
+    std::string usedDiskText = usedDiskMemoryStream.str() + " GB";
+    std::string totalDiskText = totalDiskMemoryStream.str() + " GB";
+
+    ImGui::ProgressBar(usedDiskPercentage, ImVec2(-1, 0), (usedDiskText).c_str());
+    ImGui::Text("0 GB");
+
+    // Calcule la position X pour afficher le texte "totalMemoryGB GB" à droite
+    float totalDiskTextWidth = ImGui::CalcTextSize(totalDiskText.c_str()).x;
+    float contentDRegionMaxX = ImGui::GetWindowContentRegionMax().x;
+    float totalDiskTextX = contentDRegionMaxX - totalDiskTextWidth;
+
+    // Calcule la position Y pour afficher le texte sur la même ligne
+    float cursorDPosY = ImGui::GetCursorPosY();
+    float textDHeight = ImGui::GetTextLineHeightWithSpacing();
+    float totalDiskTextY = cursorDPosY - textDHeight; // Pour placer le texte sur la même ligne
+
+    // Affiche le texte "totalMemoryGB GB" à droite sur la même ligne
+    ImGui::SetCursorPosX(totalDiskTextX);
+    ImGui::SetCursorPosY(totalDiskTextY);
+    ImGui::Text(totalDiskText.c_str());
 
     ImGui::Separator();
 

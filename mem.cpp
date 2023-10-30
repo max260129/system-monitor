@@ -4,6 +4,8 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <unistd.h>
+#include <sys/times.h>
 
 //#include <unistd.h>
 
@@ -134,35 +136,32 @@ double getUsedDiskSpaceInGB(const std::string& path) {
 #endif
 }
 
-double getProcessCPUUsage(int pid) {
-    std::string statFile = "/proc/" + std::to_string(pid) + "/stat";
-    std::ifstream file(statFile);
-
-    if (!file.is_open()) {
-        std::cerr << "Failed to open stat file for PID " << pid << std::endl;
-        return 0.0; // Default to 0% CPU usage
+double getProcessCPUUsage(pid_t processID) {
+    std::string statFilePath = "/proc/" + std::to_string(processID) + "/stat";
+    std::ifstream statFile(statFilePath.c_str());
+    
+    if (!statFile) {
+        std::cerr << "Impossible d'ouvrir le fichier /proc/" << processID << "/stat." << std::endl;
+        return -1.0;
     }
 
     std::string line;
-    std::getline(file, line);
-    file.close();
-
-    // Extract the CPU usage information from the stat file
-    long utime, stime, cutime, cstime;
-    if (sscanf(line.c_str(),
-        "%*d %*s %*c %*d %*d %*d %*d %*d %*u "
-        "%lu %lu %ld %ld",
-        &utime, &stime, &cutime, &cstime) != 4) {
-        return 0.0; // Default to 0% CPU usage if parsing fails
+    std::getline(statFile, line);
+    std::istringstream iss(line);
+    std::string token;
+    for (int i = 1; i <= 13; i++) {
+        iss >> token;
     }
 
-    long totalTime = utime + stime + cutime + cstime;
-    long hertz = sysconf(_SC_CLK_TCK);
-    double seconds = (double)totalTime / hertz;
+    long utime = 0, stime = 0;
+    iss >> utime >> stime;
+
+    long totalTime = utime + stime;
+    long hertz = sysconf(_SC_CLK_TCK); // Correction : multiplication par 100
+    double cpuUsage = 100.0 * (totalTime / static_cast<double>(hertz));
     
-    // Calculate the CPU usage percentage
-    return (seconds > 0.0) ? (100.0 * (utime + stime) / totalTime) : 0.0;
-}
+    return cpuUsage;
+}  
 
 double getProcessMemoryUsage(int pid) {
     // Paths to the process's status and system's memory info
@@ -210,7 +209,6 @@ double getProcessMemoryUsage(int pid) {
     return -1.0;
 }
 
-
 void listProcesses(const char* searchFilter) {
     DIR* dir;
     struct dirent* entry;
@@ -243,27 +241,30 @@ void listProcesses(const char* searchFilter) {
             if (file.is_open()) {
                 std::string processName;
                 int processID = std::stoi(entry->d_name);
-                double cpuUsage = getProcessCPUUsage(processID); // You need to implement this function
-                double memoryUsageKB = getProcessMemoryUsage(processID); // You need to implement this function
+                double cpuUsage = getProcessCPUUsage(processID); // Vous devez implémenter cette fonction
+                double memoryUsageKB = getProcessMemoryUsage(processID); // Vous devez implémenter cette fonction
+                std::string state;
 
                 while (std::getline(file, line)) {
                     if (line.find("Name:") == 0) {
-                        processName = line.substr(6); // Extract process name
+                        processName = line.substr(6); // Extraire le nom du processus
+                    } else if (line.find("State:") == 0) {
+                        state = line.substr(7);
+                        state = state.substr(1, state.size() - 1); // Supprimer l'espace initial
                     }
-                    else if (line.find("State:") == 0) {
-                        std::string state = line.substr(7);
-                        state = state.substr(1, state.size() - 2);
-                        ImGui::Text("%d", processID);
-                        ImGui::NextColumn();
-                        ImGui::Text("%s", processName.c_str());
-                        ImGui::NextColumn();
-                        ImGui::Text("%s", state.c_str()+2);
-                        ImGui::NextColumn();
-                        ImGui::Text("%.2f%%", cpuUsage); // Display CPU usage
-                        ImGui::NextColumn();
-                        ImGui::Text("%.2f%%", memoryUsageKB); // Display memory usage in KB
-                        ImGui::NextColumn();
-                    }
+                }
+
+                if (strstr(processName.c_str(), searchFilter) != nullptr) {
+                    ImGui::Text("%d", processID);
+                    ImGui::NextColumn();
+                    ImGui::Text("%s", processName.c_str());
+                    ImGui::NextColumn();
+                    ImGui::Text("%s", state.c_str());
+                    ImGui::NextColumn();
+                    ImGui::Text("%.2f%%", cpuUsage); // Afficher l'utilisation CPU
+                    ImGui::NextColumn();
+                    ImGui::Text("%.2f%%", memoryUsageKB); // Afficher l'utilisation mémoire en KB
+                    ImGui::NextColumn();
                 }
 
                 file.close();
