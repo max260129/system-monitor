@@ -211,6 +211,7 @@ double getProcessMemoryUsage(int pid) {
 
 
 void listProcesses(const char* searchFilter) {
+    
     DIR* dir;
     struct dirent* entry;
     std::string statusFile, line;
