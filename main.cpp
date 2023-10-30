@@ -182,7 +182,9 @@ void systemWindow(const char *id, ImVec2 size, ImVec2 position)
             }
 
             // Définition de la taille du graphique
-            ImVec2 graphSize = ImVec2(400, 200); // Largeur de 400, hauteur de 200
+            ImVec2 availableSize = ImGui::GetContentRegionAvail();
+            ImVec2 graphSize = ImVec2(availableSize.x - 205 , availableSize.y - 20);
+
 
             // Sauvegarde de la position du curseur actuel
             ImVec2 currentCursorPos = ImGui::GetCursorPos();
@@ -244,7 +246,359 @@ void networkWindow(const char *id, ImVec2 size, ImVec2 position)
     ImGui::SetWindowSize(id, size);
     ImGui::SetWindowPos(id, position);
 
+    const char* lo_address = getIPv4Address("lo");
+    const char* wlo1_address = getIPv4Address("wlp1s0");
+    const char* docker0_address = getIPv4Address("docker0");
+
     // student TODO : add code here for the network information
+    ImGui::Text("%s", getCurrentDateTimeStr());
+    ImGui::Separator();
+    ImGui::Text("ip4 network :");
+    ImGui::Text("    lo : %s\n", lo_address);
+    ImGui::Text("    wlo1 : %s\n", wlo1_address);
+    ImGui::Text("    docker0 i: %s\n", docker0_address);
+    ImGui::Separator();
+    // À l'intérieur de votre boucle de rendu ImGui
+
+    ImVec4 customBlue = ImVec4(0.2f, 0.4f, 0.6f, 1.0f);
+
+    // Appliquez la couleur personnalisée
+    ImGui::PushStyleColor(ImGuiCol_Header, customBlue);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(customBlue.x, customBlue.y, customBlue.z + 0.1f, customBlue.w));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, customBlue);
+
+    if (ImGui::CollapsingHeader("Network table")) {
+        
+        if (ImGui::CollapsingHeader("RX")) {
+            if (ImGui::BeginTable("table_rx", 9, ImGuiTableFlags_Borders)) {
+                // En-têtes pour l'axe X
+                ImGui::TableSetupColumn("interface");
+                ImGui::TableSetupColumn("bytes");
+                ImGui::TableSetupColumn("packets");
+                ImGui::TableSetupColumn("errs");
+                ImGui::TableSetupColumn("drop");
+                ImGui::TableSetupColumn("fifo");
+                ImGui::TableSetupColumn("frame");
+                ImGui::TableSetupColumn("compressed");
+                ImGui::TableSetupColumn("multicast");
+                ImGui::TableHeadersRow();
+
+                // Lignes pour l'axe Y
+                const char* rows[] = { "lo", "wlp1s0", "docker0" };
+                for (int rowIndex = 0; rowIndex < IM_ARRAYSIZE(rows); rowIndex++) {
+                    ImGui::TableNextRow();
+                    RX rowData = getRXData(rows[rowIndex]); // Récupérez les données pour l'interface spécifiée
+                    for (int colIndex = 0; colIndex < 9; colIndex++) {
+                        ImGui::TableSetColumnIndex(colIndex);
+                        switch(colIndex) {
+                            case 0:
+                                ImGui::Text("%s", rows[rowIndex]);
+                                break;
+                            case 1:
+                                ImGui::Text("%d", rowData.bytes);
+                                break;
+                            case 2:
+                                ImGui::Text("%d", rowData.packets);
+                                break;
+                            case 3:
+                                ImGui::Text("%d", rowData.errs);
+                                break;
+                            case 4:
+                                ImGui::Text("%d", rowData.drop);
+                                break;
+                            case 5:
+                                ImGui::Text("%d", rowData.fifo);
+                                break;
+                            case 6:
+                                ImGui::Text("%d", rowData.colls);
+                                break;
+                            case 7:
+                                ImGui::Text("%d", rowData.carrier);
+                                break;
+                            case 8:
+                                ImGui::Text("%d", rowData.compressed);
+                                break;
+                        }
+                    }
+                }
+                ImGui::EndTable();
+            }
+        }
+
+        
+        if (ImGui::CollapsingHeader("TX")) {
+            if (ImGui::BeginTable("table_tx", 9, ImGuiTableFlags_Borders)) {
+                // En-têtes pour l'axe X
+                ImGui::TableSetupColumn("interface");
+                ImGui::TableSetupColumn("bytes");
+                ImGui::TableSetupColumn("packets");
+                ImGui::TableSetupColumn("errs");
+                ImGui::TableSetupColumn("drop");
+                ImGui::TableSetupColumn("fifo");
+                ImGui::TableSetupColumn("frame");
+                ImGui::TableSetupColumn("compressed");
+                ImGui::TableSetupColumn("multicast");
+                ImGui::TableHeadersRow();
+
+                // Lignes pour l'axe Y
+                const char* rows[] = { "lo", "wlp1s0", "docker0" };
+                for (int rowIndex = 0; rowIndex < IM_ARRAYSIZE(rows); rowIndex++) {
+                    ImGui::TableNextRow();
+                    TX rowData = getTXData(rows[rowIndex]); // Récupérez les données pour l'interface spécifiée
+                    for (int colIndex = 0; colIndex < 9; colIndex++) {
+                        ImGui::TableSetColumnIndex(colIndex);
+                        switch(colIndex) {
+                            case 0:
+                                ImGui::Text("%s", rows[rowIndex]);
+                                break;
+                            case 1:
+                                ImGui::Text("%d", rowData.bytes);
+                                break;
+                            case 2:
+                                ImGui::Text("%d", rowData.packets);
+                                break;
+                            case 3:
+                                ImGui::Text("%d", rowData.errs);
+                                break;
+                            case 4:
+                                ImGui::Text("%d", rowData.drop);
+                                break;
+                            case 5:
+                                ImGui::Text("%d", rowData.fifo);
+                                break;
+                            case 6:
+                                ImGui::Text("%d", rowData.frame);
+                                break;
+                            case 7:
+                                ImGui::Text("%d", rowData.compressed);
+                                break;
+                            case 8:
+                                ImGui::Text("%d", rowData.multicast);
+                                break;
+                        }
+                    }
+                }
+                ImGui::EndTable();
+            }
+        }
+
+    }
+
+    ImGui::PopStyleColor(3);
+
+    if (ImGui::BeginTabBar("Tabs"))
+    {
+        if (ImGui::BeginTabItem("Receive(RX)")) {
+            // RX "lo" Data
+            ImGui::Text("lo :");
+            RX rxData = getRXData("lo");
+            double usedRXGB = static_cast<double>(rxData.bytes) / (1024.0 * 1024.0 * 1024.0); // Convert bytes to GB
+            double totalRXGB = 2.0; // Total capacity for "lo" is 2 GB
+            float usedRXPercentage = static_cast<float>(usedRXGB / totalRXGB);
+
+            // Formate le texte pour afficher seulement 2 décimales
+            std::stringstream usedRXStream;
+            usedRXStream << std::fixed << std::setprecision(2) << usedRXGB;
+            std::string usedRXText = usedRXStream.str() + " GB";
+
+            // Affiche la barre de progression avec le texte formaté
+            ImGui::ProgressBar(usedRXPercentage, ImVec2(500, 20), usedRXText.c_str());
+
+            // Affiche le texte "0 GB" à gauche
+            ImGui::Text("0 GB");
+
+            // Calcule la position X pour afficher le texte "totalRXGB GB" à droite
+            float totalRXTextWidth = ImGui::CalcTextSize((std::to_string(totalRXGB) + " GB").c_str()).x;
+            float contentRegionMaxX = ImGui::GetWindowContentRegionMax().x;
+            float totalRXTextX = contentRegionMaxX - totalRXTextWidth - 10; // Adjust with a small margin for aesthetics
+
+            // Affiche le texte "totalRXGB GB" à droite
+            ImGui::SetCursorPosX(totalRXTextX);
+            ImGui::SameLine(); // This ensures that the text is drawn on the same line as the progress bar
+            ImGui::Text(("                                                              2 GB"));
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            ImGui::Text("wlp1s0 :");
+            RX rxDataWlp1s0 = getRXData("wlp1s0");
+            double usedRXGBWlp1s0 = static_cast<double>(rxDataWlp1s0.bytes) / (1024.0 * 1024.0 * 1024.0); // Convert bytes to GB
+            double totalRXGBWlp1s0 = 2.0; // Total capacity for "wlp1s0" is 2 GB
+            float usedRXPercentageWlp1s0 = static_cast<float>(usedRXGBWlp1s0 / totalRXGBWlp1s0);
+
+            // Formate le texte pour afficher seulement 2 décimales
+            std::stringstream usedRXStreamWlp1s0;
+            usedRXStreamWlp1s0 << std::fixed << std::setprecision(2) << usedRXGBWlp1s0;
+            std::string usedRXTextWlp1s0 = usedRXStreamWlp1s0.str() + " GB";
+
+            // Affiche la barre de progression avec le texte formaté
+            ImGui::ProgressBar(usedRXPercentageWlp1s0, ImVec2(500, 20), usedRXTextWlp1s0.c_str());
+
+            // Se déplace à la ligne suivante
+            ImGui::NewLine();
+
+            // Affiche le texte "0 GB" à gauche
+            ImGui::SameLine(0, 0); // 10 pixels d'espacement
+            ImGui::Text("0 GB");
+
+            // Calcule la position X pour afficher le texte "totalRXGBWlp1s0 GB" à droite
+            float progressBarEndXWlp1s0 = ImGui::GetItemRectMax().x;
+            float totalRXTextWidthWlp1s0 = ImGui::CalcTextSize((std::to_string(totalRXGBWlp1s0) + " GB").c_str()).x;
+            float totalRXTextXWlp1s0 = progressBarEndXWlp1s0 - totalRXTextWidthWlp1s0; // place le texte juste à la fin de la barre de progression
+
+            // Positionne le curseur pour le texte "2 GB" pour "wlp1s0"
+            ImGui::SameLine(totalRXTextXWlp1s0);
+            ImGui::Text("                                                                         2 GB");
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // ... [le code précédent pour wlp1s0 ici]
+
+            ImGui::Text("docker0 :");
+            RX rxDataDocker0 = getRXData("docker0");
+            double usedRXGBDocker0 = static_cast<double>(rxDataDocker0.bytes) / (1024.0 * 1024.0 * 1024.0); // Convert bytes to GB
+            double totalRXGBDocker0 = 2.0; // Total capacity for "docker0" is 2 GB
+            float usedRXPercentageDocker0 = static_cast<float>(usedRXGBDocker0 / totalRXGBDocker0);
+
+            // Formate le texte pour afficher seulement 2 décimales
+            std::stringstream usedRXStreamDocker0;
+            usedRXStreamDocker0 << std::fixed << std::setprecision(2) << usedRXGBDocker0;
+            std::string usedRXTextDocker0 = usedRXStreamDocker0.str() + " GB";
+
+            // Affiche la barre de progression avec le texte formaté
+            ImGui::ProgressBar(usedRXPercentageDocker0, ImVec2(500, 20), usedRXTextDocker0.c_str());
+
+            // Se déplace à la ligne suivante
+            ImGui::NewLine();
+
+            // Affiche le texte "0 GB" à gauche
+            ImGui::SameLine(0, 0); // pas d'espacement
+            ImGui::Text("0 GB");
+
+            // Calcule la position X pour afficher le texte "totalRXGBDocker0 GB" à droite
+            float progressBarEndXDocker0 = ImGui::GetItemRectMax().x;
+            float totalRXTextWidthDocker0 = ImGui::CalcTextSize((std::to_string(totalRXGBDocker0) + " GB").c_str()).x;
+            float totalRXTextXDocker0 = progressBarEndXDocker0 - totalRXTextWidthDocker0; // place le texte juste à la fin de la barre de progression
+
+            // Positionne le curseur pour le texte "2 GB" pour "docker0"
+            ImGui::SameLine(totalRXTextXDocker0);
+            ImGui::Text("                                                                         2 GB");
+
+            ImGui::Spacing();
+
+
+
+            ImGui::EndTabItem();
+        }
+
+
+        if (ImGui::BeginTabItem("Transmit(TX)")) {
+                        // TX "lo" Data
+            ImGui::Text("lo :");
+            TX txData = getTXData("lo");
+            double usedTXGB = static_cast<double>(txData.bytes) / (1024.0 * 1024.0 * 1024.0); // Convert bytes to GB
+            double totalTXGB = 2.0; // Total capacity for "lo" is 2 GB
+            float usedTXPercentage = static_cast<float>(usedTXGB / totalTXGB);
+
+            // Format the text to display only 2 decimals
+            std::stringstream usedTXStream;
+            usedTXStream << std::fixed << std::setprecision(2) << usedTXGB;
+            std::string usedTXText = usedTXStream.str() + " GB";
+
+            // Display the progress bar with the formatted text
+            ImGui::ProgressBar(usedTXPercentage, ImVec2(500, 20), usedTXText.c_str());
+
+            // Display the text "0 GB" on the left
+            ImGui::Text("0 GB");
+
+            // Calculate the X position to display the text "totalTXGB GB" on the right
+            float totalTXTextWidth = ImGui::CalcTextSize((std::to_string(totalTXGB) + " GB").c_str()).x;
+            float contentRegionMaxX = ImGui::GetWindowContentRegionMax().x;
+            float totalTXTextX = contentRegionMaxX - totalTXTextWidth - 10; // Adjust with a small margin for aesthetics
+
+            // Display the text "totalTXGB GB" on the right
+            ImGui::SetCursorPosX(totalTXTextX);
+            ImGui::SameLine();
+            ImGui::Text("                                                              2 GB");
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // TX for "wlp1s0"
+            ImGui::Text("wlp1s0 :");
+            TX txDataWlp1s0 = getTXData("wlp1s0");
+            double usedTXGBWlp1s0 = static_cast<double>(txDataWlp1s0.bytes) / (1024.0 * 1024.0 * 1024.0); // Convert bytes to GB
+            double totalTXGBWlp1s0 = 2.0; // Total capacity for "wlp1s0" is 2 GB
+            float usedTXPercentageWlp1s0 = static_cast<float>(usedTXGBWlp1s0 / totalTXGBWlp1s0);
+
+            // Format the text to display only 2 decimals
+            std::stringstream usedTXStreamWlp1s0;
+            usedTXStreamWlp1s0 << std::fixed << std::setprecision(2) << usedTXGBWlp1s0;
+            std::string usedTXTextWlp1s0 = usedTXStreamWlp1s0.str() + " GB";
+
+            // Display the progress bar with the formatted text
+            ImGui::ProgressBar(usedTXPercentageWlp1s0, ImVec2(500, 20), usedTXTextWlp1s0.c_str());
+
+            // Move to the next line
+            ImGui::NewLine();
+
+            // Display the text "0 GB" on the left
+            ImGui::SameLine(0, 0); 
+            ImGui::Text("0 GB");
+
+            // Calculate the X position to display the text "totalTXGBWlp1s0 GB" on the right
+            float progressBarEndXWlp1s0 = ImGui::GetItemRectMax().x;
+            float totalTXTextWidthWlp1s0 = ImGui::CalcTextSize((std::to_string(totalTXGBWlp1s0) + " GB").c_str()).x;
+            float totalTXTextXWlp1s0 = progressBarEndXWlp1s0 - totalTXTextWidthWlp1s0;
+
+            // Set the cursor position for the text "2 GB" for "wlp1s0"
+            ImGui::SameLine(totalTXTextXWlp1s0);
+            ImGui::Text("                                                                         2 GB");
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // TX for "docker0"
+            ImGui::Text("docker0 :");
+            TX txDataDocker0 = getTXData("docker0");
+            double usedTXGBDocker0 = static_cast<double>(txDataDocker0.bytes) / (1024.0 * 1024.0 * 1024.0); // Convert bytes to GB
+            double totalTXGBDocker0 = 2.0; // Total capacity for "docker0" is 2 GB
+            float usedTXPercentageDocker0 = static_cast<float>(usedTXGBDocker0 / totalTXGBDocker0);
+
+            // Format the text to display only 2 decimals
+            std::stringstream usedTXStreamDocker0;
+            usedTXStreamDocker0 << std::fixed << std::setprecision(2) << usedTXGBDocker0;
+            std::string usedTXTextDocker0 = usedTXStreamDocker0.str() + " GB";
+
+            // Display the progress bar with the formatted text
+            ImGui::ProgressBar(usedTXPercentageDocker0, ImVec2(500, 20), usedTXTextDocker0.c_str());
+
+            // Move to the next line
+            ImGui::NewLine();
+
+            // Display the text "0 GB" on the left
+            ImGui::SameLine(0, 0); 
+            ImGui::Text("0 GB");
+
+            // Calculate the X position to display the text "totalTXGBDocker0 GB" on the right
+            float progressBarEndXDocker0 = ImGui::GetItemRectMax().x;
+            float totalTXTextWidthDocker0 = ImGui::CalcTextSize((std::to_string(totalTXGBDocker0) + " GB").c_str()).x;
+            float totalTXTextXDocker0 = progressBarEndXDocker0 - totalTXTextWidthDocker0;
+
+            // Set the cursor position for the text "2 GB" for "docker0"
+            ImGui::SameLine(totalTXTextXDocker0);
+            ImGui::Text("                                                                         2 GB");
+
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
+
+
 
     ImGui::End();
 }
