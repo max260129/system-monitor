@@ -33,6 +33,14 @@
 #include <arpa/inet.h>
 #include <map>
 
+// add for the network
+#include <sys/socket.h>
+#include <netdb.h>
+#include <string.h>
+#include <sstream>
+#include <iostream>
+#include <iomanip>
+
 using namespace std;
 
 struct CPUStats
@@ -99,6 +107,14 @@ struct RX
 // student TODO : system stats
 string CPUinfo();
 const char *getOsName();
+const char *getHostName();
+const char *getUserName();
+const char *getCPUName();
+const char* NumberofWorking();
+int get_cpu_temperature();
+const char* is_fan_enabled();
+const char* get_fan_level();
+int get_fan_speed();
 
 // student TODO : memory and processes
 double getPhysicalMemoryUsedInGB();
@@ -112,5 +128,10 @@ std::vector<double> getCPUUsage();
 double getProcessMemoryUsage(int pid);
 
 // student TODO : network
+const char *getCurrentDateTimeStr();
+const char *getIPv4Address(const char* iface);
+TX getTXData(const std::string& interfaceName);
+RX getRXData(const std::string& interfaceName);
+
 
 #endif
